@@ -1,0 +1,711 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#!pip install sklearn --upgrade\n",
+    "#!pip install imblearn --upgrade"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import pandas               as pd\n",
+    "#import matplotlib.pyplot    as plt\n",
+    "\n",
+    "from sklearn.model_selection  import train_test_split, GridSearchCV,\\\n",
+    "                                     StratifiedKFold\n",
+    "from sklearn.preprocessing    import OneHotEncoder\n",
+    "from sklearn.metrics          import balanced_accuracy_score,\\\n",
+    "                                     confusion_matrix, roc_auc_score\n",
+    "# Import xgboost\n",
+    "import xgboost              as xgb\n",
+    "\n",
+    "from imblearn.over_sampling   import SMOTE\n",
+    "from imblearn.under_sampling  import RandomUnderSampler\n",
+    "from imblearn.pipeline        import Pipeline"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "\n",
+    "#import types\n",
+    "#import pandas as pd\n",
+    "#from botocore.client import Config\n",
+    "#import ibm_boto3\n",
+    "\n",
+    "#def __iter__(self): return 0\n",
+    "\n",
+    "# @hidden_cell\n",
+    "# The following code accesses a file in your IBM Cloud Object Storage. It includes your credentials.\n",
+    "# You might want to remove those credentials before you share the notebook.\n",
+    "#client_7463ca614953494181369d0b1ae8c0f2 = ibm_boto3.client(service_name='s3',\n",
+    "#    ibm_api_key_id='hh_MYLG-3Hq-R7hcNvajeJcBLBiWFFT49huB1lJerY5s',\n",
+    "#    ibm_auth_endpoint=\"https://iam.cloud.ibm.com/oidc/token\",\n",
+    "#    config=Config(signature_version='oauth'),\n",
+    "#    endpoint_url='https://s3.eu-geo.objectstorage.service.networklayer.com')\n",
+    "\n",
+    "#body = client_7463ca614953494181369d0b1ae8c0f2.get_object(Bucket='algar-donotdelete-pr-oazmap8qrzxynm',Key='algar-dataset-treino.csv')['Body']\n",
+    "# add missing __iter__ method, so pandas accepts body as file-like object\n",
+    "#if not hasattr(body, \"__iter__\"): body.__iter__ = types.MethodType( __iter__, body )\n",
+    "\n",
+    "#df = pd.read_csv(body)\n",
+    "#df_data_1.head()\n",
+    "df = pd.read_csv(r'C:\\Users\\cpcle\\OneDrive\\Documentos\\Celso\\Maratona Behind the Code 2020\\Desafio 4\\algar-dataset-treino.csv')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Columns with unique value: ['Possui carro', 'Maior de idade', 'Horas de trabalho padrão']\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Columns ith one value\n",
+    "a= [col for col in df.columns if df[col].value_counts().count()<2]\n",
+    "print('Columns with unique value:', a)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "True\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Subordinado has unique values\n",
+    "print(df['Subordinado'].value_counts().count() == len(df['Subordinado']))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Get Features and target\n",
+    "X = df.iloc[:,:-1]\n",
+    "y = df.iloc[:,-1]\n",
+    "\n",
+    "# Eliminate columns with unique feature values\n",
+    "X = X.drop(a + ['Subordinado'], axis=1)\n",
+    "\n",
+    "# Categorical Columns\n",
+    "c_columns = X.select_dtypes(include='object')\n",
+    "nc_columns = [col for col in X.columns if col not in c_columns.columns]\n",
+    "\n",
+    "ohe = OneHotEncoder(handle_unknown='ignore')\n",
+    "\n",
+    "c_columns = pd.DataFrame(ohe.fit_transform(c_columns).toarray())\n",
+    "c_columns.columns = ohe.get_feature_names()\n",
+    "\n",
+    "X = pd.concat([X[nc_columns], c_columns], axis=1)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Train test split  75% / 25%\n",
+    "X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=555)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Assemble Model\n",
+    "\n",
+    "# Instantiate the XGBClassifier: xg_cl\n",
+    "xg_cl = xgb.XGBClassifier(objective='binary:logistic', random_state=123)\n",
+    "\n",
+    "# tunning parameters\n",
+    "gbm_param_grid = [\n",
+    "    {\n",
+    "     'SMOTE__sampling_strategy': [0.5, 0.4, 0.3],\n",
+    "     'under__sampling_strategy': [0.5, 0.6, 0.7],\n",
+    "     'model__colsample_bytree': [0.055],\n",
+    "     'model__n_estimators': [130, 150, 200],\n",
+    "     'model__max_depth': [1, 2, 3],\n",
+    "     'model__reg_alpha': [0, 0.25, 0.3, 0.35],\n",
+    "     'model__learning_rate': [0.3, 0.35, 0.5, 0.6]\n",
+    "    }\n",
+    "]\n",
+    "# Instantiate the classifier: gbm\n",
+    "gbm = xgb.XGBClassifier()\n",
+    "over = SMOTE(sampling_strategy=0.5)\n",
+    "under = RandomUnderSampler(sampling_strategy=0.5, random_state=555)\n",
+    "kfold = StratifiedKFold(n_splits=5, shuffle=False)\n",
+    "\n",
+    "# Assamble Pipeline\n",
+    "steps = [('SMOTE', over),\n",
+    "         ('under', under), \n",
+    "         ('model', gbm)]\n",
+    "\n",
+    "pipeline = Pipeline(steps=steps)\n",
+    "\n",
+    "# Perform grid search: grid_mse\n",
+    "grid_acc = GridSearchCV(param_grid=gbm_param_grid, estimator=pipeline,\n",
+    "                        scoring = \"balanced_accuracy\", cv=kfold, verbose=1,\n",
+    "                        n_jobs=4)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Fitting 5 folds for each of 1296 candidates, totalling 6480 fits\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "[Parallel(n_jobs=4)]: Using backend LokyBackend with 4 concurrent workers.\n",
+      "[Parallel(n_jobs=4)]: Done  48 tasks      | elapsed:    2.7s\n",
+      "[Parallel(n_jobs=4)]: Done 348 tasks      | elapsed:   13.6s\n",
+      "[Parallel(n_jobs=4)]: Done 848 tasks      | elapsed:   47.2s\n",
+      "[Parallel(n_jobs=4)]: Done 1548 tasks      | elapsed:  1.5min\n",
+      "[Parallel(n_jobs=4)]: Done 2448 tasks      | elapsed:  2.5min\n",
+      "[Parallel(n_jobs=4)]: Done 3548 tasks      | elapsed:  3.5min\n",
+      "[Parallel(n_jobs=4)]: Done 4848 tasks      | elapsed:  4.8min\n",
+      "[Parallel(n_jobs=4)]: Done 6348 tasks      | elapsed:  6.1min\n",
+      "[Parallel(n_jobs=4)]: Done 6480 out of 6480 | elapsed:  6.3min finished\n"
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "GridSearchCV(cv=StratifiedKFold(n_splits=5, random_state=None, shuffle=False),\n",
+       "             estimator=Pipeline(steps=[('SMOTE', SMOTE(sampling_strategy=0.5)),\n",
+       "                                       ('under',\n",
+       "                                        RandomUnderSampler(random_state=555,\n",
+       "                                                           sampling_strategy=0.5)),\n",
+       "                                       ('model', XGBClassifier())]),\n",
+       "             n_jobs=4,\n",
+       "             param_grid=[{'SMOTE__sampling_strategy': [0.5, 0.4, 0.3],\n",
+       "                          'model__colsample_bytree': [0.055],\n",
+       "                          'model__learning_rate': [0.3, 0.35, 0.5, 0.6],\n",
+       "                          'model__max_depth': [1, 2, 3],\n",
+       "                          'model__n_estimators': [130, 150, 200],\n",
+       "                          'model__reg_alpha': [0, 0.25, 0.3, 0.35],\n",
+       "                          'under__sampling_strategy': [0.5, 0.6, 0.7]}],\n",
+       "             scoring='balanced_accuracy', verbose=1)"
+      ]
+     },
+     "execution_count": 15,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#Tune Model\n",
+    "# Fit grid_mse to the data\n",
+    "grid_acc.fit(X_train, y_train)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "Best parameters found:  {'SMOTE__sampling_strategy': 0.3, 'model__colsample_bytree': 0.055, 'model__learning_rate': 0.35, 'model__max_depth': 1, 'model__n_estimators': 200, 'model__reg_alpha': 0.25, 'under__sampling_strategy': 0.7}\n",
+      "\n",
+      "Highest average balanced accuracy found: 0.7631\n",
+      "\n",
+      "Best Estimator: \n",
+      " Pipeline(steps=[('SMOTE', SMOTE(sampling_strategy=0.3)),\n",
+      "                ('under',\n",
+      "                 RandomUnderSampler(random_state=555, sampling_strategy=0.7)),\n",
+      "                ('model',\n",
+      "                 XGBClassifier(colsample_bytree=0.055, learning_rate=0.35,\n",
+      "                               max_depth=1, n_estimators=200,\n",
+      "                               reg_alpha=0.25))])\n",
+      " \n",
+      "Best test score: 0.773953\n",
+      "\n",
+      "Train score: 0.815780\n",
+      "Test  score: 0.773953\n",
+      "\n",
+      "\n",
+      "Balanced Accuracy : 0.7740\n",
+      "AUC               : 0.7740\n",
+      "Accuracy          : 0.9200\n",
+      "Specificity       : 0.6279\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Print scores\n",
+    "# Print the best parameters and lowest RMSE\n",
+    "print(\"\\nBest parameters found: \", grid_acc.best_params_)\n",
+    "print(\"\\nHighest average balanced accuracy found: %.4f\" % grid_acc.best_score_)\n",
+    "\n",
+    "print('\\nBest Estimator: \\n', grid_acc.best_estimator_)\n",
+    "\n",
+    "print(' \\nBest test score: %f' % (grid_acc.score(X_test, y_test)))\n",
+    "\n",
+    "#Print scores\n",
+    "print('\\nTrain score: %f' % grid_acc.score(X_train, y_train))\n",
+    "print('Test  score: %f\\n' % grid_acc.score(X_test, y_test))\n",
+    "\n",
+    "y_pred = grid_acc.predict(X_test)\n",
+    "ba = balanced_accuracy_score(y_test, y_pred)\n",
+    "cm = confusion_matrix(y_test, y_pred, labels=['Não', 'Sim'])\n",
+    "ac = cm[0,0]/(cm[0,0]+cm[0,1])\n",
+    "sp = cm[1,1]/(cm[1,1]+cm[1,0])\n",
+    "auc = roc_auc_score(y_test=='Não', y_pred=='Não')\n",
+    "\n",
+    "print('\\nBalanced Accuracy : %.4f' % ba)\n",
+    "print('AUC               : %.4f' % auc)\n",
+    "print('Accuracy          : %.4f' % ac)\n",
+    "print('Specificity       : %.4f\\n' % sp)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Encapsulando uma Pipeline personalizada no Watson Machine Learning"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Estabelecendo conexão entre o cliente Python do WML e a sua instância do serviço na nuvem"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Biblioteca Python com implementação de um cliente HTTP para a API do WML\n",
+    "from watson_machine_learning_client import WatsonMachineLearningAPIClient"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "As próximas células irão realizar o deploy da pipeline declarada neste notebook no WML. Só prossiga se você já está satisfeito com seu modelo e acha que já é a hora de fazer o deploy da sua solução.\n",
+    "\n",
+    "Cole as credenciais de sua instância do Watson Machine Learning na variável na célula abaixo.\n",
+    "\n",
+    "É importante que a variável que contém os valores tenha o nome de ``wml_credentials`` para que as próximas células deste notebook executem corretamente."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "wml_credentials = {\n",
+    "  \"apikey\": \"\",\n",
+    "  \"iam_apikey_description\": \"\",\n",
+    "  \"iam_apikey_name\": \"\",\n",
+    "  \"iam_role_crn\": \"\",\n",
+    "  \"iam_serviceid_crn\": \"\",\n",
+    "  \"instance_id\": \"\",\n",
+    "  \"url\": \"\"\n",
+    "}"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Instanciando um objeto cliente do Watson Machine Learning a partir das credenciais fornecidas\n",
+    "\n",
+    "clientWML = WatsonMachineLearningAPIClient(wml_credentials)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Extraindo detalhes da sua instância do Watson Machine Learning\n",
+    "\n",
+    "instance_details = clientWML.service_instance.get_details()\n",
+    "print(json.dumps(instance_details, indent=4))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**ATENÇÃO!!**\n",
+    "\n",
+    "Fique atento para os limites de consumo de sua instância do Watson Machine Learning!\n",
+    "\n",
+    "Caso você expire a camada grátis, não será possível avaliar seu modelo (pois é necessária a realização de algumas chamadas de API que consomem predições!)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Listando todos os artefatos armazenados no seu WML"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Para listar todos os artefatos armazenados em seu Watson Machine Learning, você pode usar a seguinte função:\n",
+    "\n",
+    "    clientWML.repository.list()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Listando todos os artefatos atualmente armazenados na sua instância do WML\n",
+    "\n",
+    "clientWML.repository.list()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "No plano LITE do Watson Machine Learning só é permitido o deploy de um único modelo por vez. Se for o caso de você já possuir um modelo online na sua instância, você pode apagá-lo utilizando o método clientWML.repository.delete():\n",
+    "\n",
+    "    artifact_guid = \"359c8951-d2fe-4063-8706-cc06b32d5e0d\"\n",
+    "    clientWML.repository.delete(artifact_guid)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Criando uma nova definição de pacote Python personalizado no WML"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "O primeiro passo para realizar seu deploy é armazenar o código das transformações personalizadas criadas por você.\n",
+    "\n",
+    "Para essa etapa precisamos apenas do arquivo .zip do pacote criado (que já possuimos carregado no Kernel!)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Definição de metadados do nosso pacote com as Transforms personalizadas\n",
+    "pkg_meta = {\n",
+    "    clientWML.runtimes.LibraryMetaNames.NAME: \"my_custom_sklearn_transform_1\",\n",
+    "    clientWML.runtimes.LibraryMetaNames.DESCRIPTION: \"A custom sklearn transform\",\n",
+    "    clientWML.runtimes.LibraryMetaNames.FILEPATH: \"sklearn_transforms.zip\",  # Note que estamos utilizando o .zip criado anteriormente!\n",
+    "    clientWML.runtimes.LibraryMetaNames.VERSION: \"1.0\",\n",
+    "    clientWML.runtimes.LibraryMetaNames.PLATFORM: { \"name\": \"python\", \"versions\": [\"3.6\"] }\n",
+    "}\n",
+    "custom_package_details = clientWML.runtimes.store_library( pkg_meta )\n",
+    "custom_package_uid = clientWML.runtimes.get_library_uid( custom_package_details )\n",
+    "\n",
+    "print(\"\\n Lista de artefatos de runtime armazenados no WML:\")\n",
+    "clientWML.repository.list()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Criando uma nova definição de runtime Python personalizado no WML\n",
+    "\n",
+    "O segundo passo é armazenar uma definição de runtime Python para utilizar a nossa biblioteca personalizada.\n",
+    "\n",
+    "Isso pode ser feito da seguinte forma:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "runtime_meta = {\n",
+    "    clientWML.runtimes.ConfigurationMetaNames.NAME: \"my_custom_wml_runtime_1\",\n",
+    "    clientWML.runtimes.ConfigurationMetaNames.DESCRIPTION: \"A Python runtime with custom sklearn Transforms\",\n",
+    "    clientWML.runtimes.ConfigurationMetaNames.PLATFORM: {\n",
+    "        \"name\": \"python\",\n",
+    "        \"version\": \"3.6\"\n",
+    "    },\n",
+    "    clientWML.runtimes.ConfigurationMetaNames.LIBRARIES_UIDS: [ custom_package_uid ]\n",
+    "}\n",
+    "runtime_details = clientWML.runtimes.store( runtime_meta )\n",
+    "custom_runtime_uid = clientWML.runtimes.get_uid( runtime_details )\n",
+    "\n",
+    "print(\"\\n Detalhes do runtime armazenado:\")\n",
+    "print(json.dumps(runtime_details, indent=4))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Listando todos runtimes armazenados no seu WML:\n",
+    "clientWML.runtimes.list()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Criando uma nova definição de Pipeline personalizada no WML\n",
+    "\n",
+    "Finalmente iremos criar uma definição (metadados) para a nossa Pipeline ser hospedada no WML.\n",
+    "\n",
+    "Definimos como parâmetros um nome para o artefato e o ID do runtime criado anteriormente."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "model_meta = {\n",
+    "    clientWML.repository.ModelMetaNames.NAME: 'desafio-2-mbtc2020-pipeline-1',\n",
+    "    clientWML.repository.ModelMetaNames.DESCRIPTION: \"my pipeline for submission\",\n",
+    "    clientWML.repository.ModelMetaNames.RUNTIME_UID: custom_runtime_uid\n",
+    "}"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Em seguida chamamos o método para armazenar a nova definição:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Função para armazenar uma definição de Pipeline no WML\n",
+    "stored_model_details = clientWML.repository.store_model(\n",
+    "    model=my_pipeline,  # `my_pipeline` é a variável criada anteriormente e contém nossa Pipeline já treinada :)\n",
+    "    meta_props=model_meta,  # Metadados definidos na célula anterior\n",
+    "    training_data=None  # Não altere esse parâmetro\n",
+    ")\n",
+    "\n",
+    "print(\"\\n Lista de artefatos armazenados no WML:\")\n",
+    "clientWML.repository.list()\n",
+    "\n",
+    "# Detalhes do modelo hospedado no Watson Machine Learning\n",
+    "print(\"\\n Metadados do modelo armazenado:\")\n",
+    "print(json.dumps(stored_model_details, indent=4))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Realizando o deployment do seu modelo para consumo imediato por outras aplicações"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# O deployment do modelo é finalmente realizado por meio do método ``deployments.create()``\n",
+    "\n",
+    "model_deployment_details = clientWML.deployments.create(\n",
+    "    artifact_uid=stored_model_details[\"metadata\"][\"guid\"],  # Não altere esse parâmetro\n",
+    "    name=\"desafio-2-mbtc2020-deployment-1\",\n",
+    "    description=\"Solução do desafio 2 - MBTC\",\n",
+    "    asynchronous=False,  # Não altere esse parâmetro\n",
+    "    deployment_type='online',  # Não altere esse parâmetro\n",
+    "    deployment_format='Core ML',  # Não altere esse parâmetro\n",
+    "    meta_props=model_meta  # Não altere esse parâmetro\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Testando um modelo hospedado no Watson Machine Learning"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Recuperando a URL endpoint do modelo hospedado na célula anterior\n",
+    "\n",
+    "model_endpoint_url = clientWML.deployments.get_scoring_url(model_deployment_details)\n",
+    "print(\"A URL de chamada da sua API é: {}\".format(model_endpoint_url))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Detalhes do deployment realizado\n",
+    "\n",
+    "deployment_details = clientWML.deployments.get_details(\n",
+    "    deployment_uid=model_deployment_details[\"metadata\"][\"guid\"]  # esse é o ID do seu deployment!\n",
+    ")\n",
+    "\n",
+    "print(\"Metadados do deployment realizado: \\n\")\n",
+    "print(json.dumps(deployment_details, indent=4))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "scoring_payload = {\n",
+    "    'fields': [\n",
+    "        \"MATRICULA\", \"NOME\", 'REPROVACOES_DE', 'REPROVACOES_EM', \"REPROVACOES_MF\", \"REPROVACOES_GO\",\n",
+    "        \"NOTA_DE\", \"NOTA_EM\", \"NOTA_MF\", \"NOTA_GO\",\n",
+    "        \"INGLES\", \"H_AULA_PRES\", \"TAREFAS_ONLINE\", \"FALTAS\", \n",
+    "    ],\n",
+    "    'values': [\n",
+    "        [\n",
+    "            513949,\"Marli Quésia de Oliveira\",1,1,1,1,4.3,4.0,3.1,4.9,0,3,4,3,\n",
+    "        ]\n",
+    "    ]\n",
+    "}\n",
+    "\n",
+    "print(\"\\n Payload de dados a ser classificada:\")\n",
+    "print(json.dumps(scoring_payload, indent=4))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "result = clientWML.deployments.score(\n",
+    "    model_endpoint_url,\n",
+    "    scoring_payload\n",
+    ")\n",
+    "\n",
+    "print(\"\\n Resultados:\")\n",
+    "print(json.dumps(result, indent=4))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "<hr>\n",
+    "\n",
+    "## Parabéns! \n",
+    "\n",
+    "Se tudo foi executado sem erros, você já tem um classificador baseado em machine learning encapsulado como uma API REST!\n",
+    "\n",
+    "Para testar a sua solução integrada com um assistente virtual e realizar a submissão, acesse a página:\n",
+    "\n",
+    "https://uninassau.maratona.dev\n",
+    "\n",
+    "Você irá precisar da endpoint url do seu modelo e das credenciais do WML :)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.7.7"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
+}

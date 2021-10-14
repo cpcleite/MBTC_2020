@@ -1,0 +1,183 @@
+parametros = { 'n_estimators'     : [30, 100, 200],
+               'eta'              : [0.05, 0.1, 0.3],
+               'max_depth'        : [4, 5, 6],
+               'min_child_weight' : [1],
+               'gamma'            : [0],
+               'subsample'        : [1],
+               'colsample_bytree' : [0.8, 1],
+               'objective'        : ['multi:softmax'],
+               'num_class'        : [6]
+    }
+
+Fitting 4 folds for each of 54 candidates, totalling 216 fits
+[Parallel(n_jobs=4)]: Using backend LokyBackend with 4 concurrent workers.
+[Parallel(n_jobs=4)]: Done  42 tasks      | elapsed:  2.4min
+[Parallel(n_jobs=4)]: Done 192 tasks      | elapsed: 13.5min
+[Parallel(n_jobs=4)]: Done 216 out of 216 | elapsed: 15.5min finished
+
+Best parameters : {'colsample_bytree': 1, 'eta': 0.05, 'gamma': 0, 'max_depth': 6, 'min_child_weight': 1, 'n_estimators': 200, 'num_class': 6, 'objective': 'multi:softmax', 'subsample': 1}
+
+Best score : 0.8054
+
+Train accuracy: 0.828853
+Train F1_score: 0.828711
+
+Test accuracy : 0.825032
+Test F1_score : 0.824630
+
+parametros = { 'n_estimators'     : [100, 200, 300],
+               'eta'              : [0.01, 0.05, 0.1],
+               'max_depth'        : [5, 6, 7],
+               'min_child_weight' : [1],
+               'gamma'            : [0],
+               'subsample'        : [1],
+               'colsample_bytree' : [1],
+               'objective'        : ['multi:softmax'],
+               'num_class'        : [6]
+    }
+
+Fitting 4 folds for each of 27 candidates, totalling 108 fits
+[Parallel(n_jobs=4)]: Using backend LokyBackend with 4 concurrent workers.
+[Parallel(n_jobs=4)]: Done  42 tasks      | elapsed:  6.4min
+[Parallel(n_jobs=4)]: Done 108 out of 108 | elapsed: 17.7min finished
+
+Best parameters : {'colsample_bytree': 1, 'eta': 0.05, 'gamma': 0, 'max_depth': 6, 'min_child_weight': 1, 'n_estimators': 200, 'num_class': 6, 'objective': 'multi:softmax', 'subsample': 1}
+
+Best score : 0.8054
+
+Train accuracy: 0.828853
+Train F1_score: 0.828711
+
+Test accuracy : 0.825032
+Test F1_score : 0.824630
+
+parametros = { 'n_estimators'     : [200],
+               'eta'              : [0.05],
+               'max_depth'        : [5, 6, 7],
+               'min_child_weight' : [1],
+               'gamma'            : [0],
+               'subsample'        : [1],
+               'colsample_bytree' : [1],
+               'objective'        : ['multi:softmax'],
+               'eval_metric'      : ['merror', 'mlogloss'],
+               'num_class'        : [6]
+    }
+	
+Fitting 4 folds for each of 6 candidates, totalling 24 fits
+[Parallel(n_jobs=4)]: Using backend LokyBackend with 4 concurrent workers.
+[Parallel(n_jobs=4)]: Done  24 out of  24 | elapsed:  4.5min finished
+
+Best parameters : {'colsample_bytree': 1, 'eta': 0.05, 'eval_metric': 'merror', 'gamma': 0, 'max_depth': 6, 'min_child_weight': 1, 'n_estimators': 200, 'num_class': 6, 'objective': 'multi:softmax', 'subsample': 1}
+
+Best score : 0.8054
+
+Train accuracy: 0.828853
+Train F1_score: 0.828711
+
+Test accuracy : 0.825032
+Test F1_score : 0.824630
+
+parametros = { 'n_estimators'     : [200],
+               'eta'              : [0.05],
+               'max_depth'        : [5, 6, 7],
+               'min_child_weight' : [0.5, 1, 2, 5],
+               'gamma'            : [0, 0.5, 1],
+               'subsample'        : [1],
+               'colsample_bytree' : [1],
+               'objective'        : ['multi:softmax'],
+               'eval_metric'      : ['merror'],
+               'num_class'        : [6]
+    }
+
+Fitting 4 folds for each of 36 candidates, totalling 144 fits
+[Parallel(n_jobs=4)]: Using backend LokyBackend with 4 concurrent workers.
+[Parallel(n_jobs=4)]: Done  42 tasks      | elapsed:  7.7min
+[Parallel(n_jobs=4)]: Done 144 out of 144 | elapsed: 26.8min finished
+
+Best parameters : {'colsample_bytree': 1, 'eta': 0.05, 'eval_metric': 'merror', 'gamma': 0.5, 'max_depth': 6, 'min_child_weight': 2, 'n_estimators': 200, 'num_class': 6, 'objective': 'multi:softmax', 'subsample': 1}
+
+Best score : 0.8056
+
+Train accuracy: 0.824754
+Train F1_score: 0.824582
+
+Test accuracy : 0.823455
+Test F1_score : 0.823046
+
+parametros = { 'n_estimators'     : [200],
+               'eta'              : [0.05],
+               'max_depth'        : [6],
+               'min_child_weight' : [1, 2, 5],
+               'gamma'            : [0.2, 0.5, 0.7],
+               'subsample'        : [1],
+               'colsample_bytree' : [1],
+               'objective'        : ['multi:softmax'],
+               'eval_metric'      : ['merror'],
+               'num_class'        : [6]
+    }
+
+Fitting 4 folds for each of 9 candidates, totalling 36 fits
+[Parallel(n_jobs=4)]: Using backend LokyBackend with 4 concurrent workers.
+[Parallel(n_jobs=4)]: Done  36 out of  36 | elapsed:  6.9min finished
+
+Best parameters : {'colsample_bytree': 1, 'eta': 0.05, 'eval_metric': 'merror', 'gamma': 0.5, 'max_depth': 6, 'min_child_weight': 2, 'n_estimators': 200, 'num_class': 6, 'objective': 'multi:softmax', 'subsample': 1}
+
+Best score : 0.8056
+
+Train accuracy: 0.824754
+Train F1_score: 0.824582
+
+Test accuracy : 0.823455
+Test F1_score : 0.823046
+
+parametros = { 'n_estimators'     : [200, 300, 500],
+               'eta'              : [0.05, 0.3, 0.7, 1],
+               'max_depth'        : [6],
+               'min_child_weight' : [2],
+               'gamma'            : [0.5],
+               'subsample'        : [1],
+               'colsample_bytree' : [1],
+               'objective'        : ['multi:softmax'],
+               'eval_metric'      : ['merror'],
+               'num_class'        : [6]
+    }
+
+Fitting 4 folds for each of 12 candidates, totalling 48 fits
+[Parallel(n_jobs=4)]: Using backend LokyBackend with 4 concurrent workers.
+[Parallel(n_jobs=4)]: Done  48 out of  48 | elapsed: 13.8min finished
+
+Best parameters : {'colsample_bytree': 1, 'eta': 0.05, 'eval_metric': 'merror', 'gamma': 0.5, 'max_depth': 6, 'min_child_weight': 2, 'n_estimators': 200, 'num_class': 6, 'objective': 'multi:softmax', 'subsample': 1}
+
+Best score : 0.8056
+
+Train accuracy: 0.824754
+Train F1_score: 0.824582
+
+Test accuracy : 0.823455
+Test F1_score : 0.823046
+
+parametros = { 'n_estimators'     : [100, 200],
+               'eta'              : [0.03, 0.05, 0.10],
+               'max_depth'        : [6],
+               'min_child_weight' : [2],
+               'gamma'            : [0.5],
+               'subsample'        : [1],
+               'colsample_bytree' : [1],
+               'objective'        : ['multi:softmax'],
+               'eval_metric'      : ['merror'],
+               'num_class'        : [6]
+    }
+
+Fitting 4 folds for each of 6 candidates, totalling 24 fits
+[Parallel(n_jobs=4)]: Using backend LokyBackend with 4 concurrent workers.
+[Parallel(n_jobs=4)]: Done  24 out of  24 | elapsed:  3.2min finished
+
+Best parameters : {'colsample_bytree': 1, 'eta': 0.05, 'eval_metric': 'merror', 'gamma': 0.5, 'max_depth': 6, 'min_child_weight': 2, 'n_estimators': 200, 'num_class': 6, 'objective': 'multi:softmax', 'subsample': 1}
+
+Best score : 0.8056
+
+Train accuracy: 0.824754
+Train F1_score: 0.824582
+
+Test accuracy : 0.823455
+Test F1_score : 0.823046
